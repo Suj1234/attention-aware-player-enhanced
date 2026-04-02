@@ -82,11 +82,11 @@ def _auto_detect_platform() -> str:
         from platforms import PLATFORMS
         script = '''
         tell application "Google Chrome"
-            set allUrls to {}
+            set allUrls to ""
             repeat with w in windows
                 repeat with t in tabs of w
                     try
-                        set end of allUrls to (URL of t) as string
+                        set allUrls to allUrls & (URL of t) & "|"
                     end try
                 end repeat
             end repeat
@@ -94,11 +94,17 @@ def _auto_detect_platform() -> str:
         end tell
         '''
         r = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
-        urls_raw = r.stdout.strip()
+        urls_raw = r.stdout.strip().lower()
+        if not urls_raw:
+            print("[Platform] No Chrome tabs detected.")
+            return "netflix"
+
         for name, cfg in PLATFORMS.items():
-            if cfg["url_filter"] in urls_raw.lower():
-                print(f"[Platform] Auto-detected: {name}")
+            if cfg["url_filter"] in urls_raw:
+                print(f"[Platform] ✅ Auto-detected: {name.upper()}")
                 return name
+        
+        print(f"[Platform] No supported OTT found in tabs. Defaulting to Netflix logic.")
     except Exception as e:
         print(f"[Platform] Auto-detect failed: {e}")
     return "netflix"
@@ -110,8 +116,9 @@ def _nf_js(action: str) -> str:
         f"(function(){{"
         f"  try {{"
         f"    var v = document.querySelector('video');"
-        f"    var n = window.netflix || window.__netflix || (typeof netflix !== 'undefined' ? netflix : null);"
         f"    var pl = null;"
+        f"    /* 1. Try Netflix API */"
+        f"    var n = window.netflix || window.__netflix || (typeof netflix !== 'undefined' ? netflix : null);"
         f"    if (n) {{"
         f"      try {{"
         f"        var vp = n.appContext.state.playerApp.getAPI().videoPlayer;"
@@ -119,11 +126,31 @@ def _nf_js(action: str) -> str:
         f"        if (ids.length > 0) pl = vp.getVideoPlayerBySessionId(ids[0]);"
         f"      }} catch(e) {{}}"
         f"    }}"
-        f"    if (!pl && !v) return 'ERROR:No video or Netflix API found';"
-        f"    var _play = function() {{ if(pl) pl.play(); else v.play(); }};"
-        f"    var _pause = function() {{ if(pl) pl.pause(); else v.pause(); }};"
-        f"    var _getTime = function() {{ return pl ? pl.getCurrentTime() : (v.currentTime * 1000); }};"
-        f"    var _seek = function(m) {{ if(pl) pl.seek(m); else v.currentTime = m/1000.0; }};"
+        f"    /* 2. Try YouTube API */"
+        f"    var yt = document.getElementById('movie_player') || document.querySelector('.html5-video-player');"
+        f"    if (!pl && yt && yt.pauseVideo) pl = yt;"
+        f""
+        f"    if (!pl && !v) return 'ERROR:No video or player API found';"
+        f""
+        f"    var _play = function() {{ "
+        f"       if (pl && pl.playVideo) pl.playVideo(); "
+        f"       else if (pl && pl.play) pl.play(); "
+        f"       else if (v) v.play(); "
+        f"    }};"
+        f"    var _pause = function() {{ "
+        f"       if (pl && pl.pauseVideo) pl.pauseVideo(); "
+        f"       else if (pl && pl.pause) pl.pause(); "
+        f"       else if (v) v.pause(); "
+        f"    }};"
+        f"    var _getTime = function() {{ "
+        f"       if (pl && pl.getCurrentTime) return pl.getCurrentTime() * 1000; "
+        f"       return v ? v.currentTime * 1000 : 0; "
+        f"    }};"
+        f"    var _seek = function(m) {{ "
+        f"       if (pl && pl.seekTo) pl.seekTo(m/1000); "
+        f"       else if (pl && pl.seek) pl.seek(m); "
+        f"       else if (v) v.currentTime = m/1000; "
+        f"    }};"
         f"    var _getVol = function() {{ return v ? v.volume : 1.0; }};"
         f"    var _setVol = function(vol) {{ if(v) v.volume = Math.max(0, Math.min(1, vol)); }};"
         f"    {action.replace('pl.play()', '_play()').replace('pl.pause()', '_pause()').replace('pl.getCurrentTime()', '_getTime()').replace('pl.seek', '_seek').replace('_getVolume()', '_getVol()').replace('_setVolume', '_setVol')}"
