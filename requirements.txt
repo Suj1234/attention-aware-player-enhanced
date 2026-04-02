@@ -1,4 +1,8 @@
-opencv-python==4.13.0.92
-mediapipe==0.10.32
-numpy==2.2.6
-websocket-client==1.8.0
+# ── Core (original) ─────────────────────────────────────────────
+opencv-python>=4.9.0
+mediapipe>=0.10.14
+numpy>=1.26.0
+websocket-client>=1.8.0
+
+# ── Enhanced Edition additions ───────────────────────────────────
+scipy>=1.13.0          # EAR signal smoothing (optional, for future filtering)

@@ -1,27 +1,22 @@
+# 👁 Attention-Aware Netflix Player — Enhanced Edition
 
+> **Auto-pause any streaming platform when you look away, fall asleep, or leave the room.**  
+> Built on top of [Tuesday-Labs/Attention-Aware-Netflix-Player](https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player) · MIT License
 
-## 📝 Project Overview
-
-The **Netflix Attention Controller** is a productivity and accessibility tool designed to make streaming more seamless. By leveraging Google's MediaPipe Face Landmarker, it monitors your attention levels in real-time. 
-
-![macOS](https://img.shields.io/badge/os-macOS-brightgreen?logo=apple) ![Windows](https://img.shields.io/badge/os-Windows-blue?logo=windows)
-
-Unlike simple "face detection" tools, this project computes precise **3D head pose (Yaw and Pitch)** to determine if you are actually looking at the screen. It also features a "Seek-Back" mechanism: if you leave the camera's view (e.g., to grab a snack), the script tracks your absence and automatically rewinds the video when you return, ensuring you never miss a beat.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![MediaPipe](https://img.shields.io/badge/MediaPipe-Face%20Landmarker-green) ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-lightgrey) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
-## ✨ Features
+## ✨ What's New in the Enhanced Edition
 
-| Feature | Description |
-|---|---|
-| **Head-Pose Tracking** | Uses MediaPipe Face Landmarker (478-point mesh) to compute yaw & pitch of your head in real time |
-| **Auto Pause / Resume** | Netflix pauses when you look away for >1.5 s, resumes when you look back |
-| **Seek-Back on Return** | Leave the room? Netflix keeps playing, but rewinds by exactly how long you were gone when you come back |
-| **2-Person Mode** | Supports two viewers — Netflix pauses if *either* person looks away, resumes only when *both* are watching |
-| **Auto Calibration** | Learns your neutral head position in the first 30 frames — no manual setup needed |
-| **Digital Zoom** | Crops and upscales the centre of the camera frame so MediaPipe can detect faces even at ~2 m distance |
-| **CLI Playback Control** | Standalone script to play, pause, toggle, seek, and query Netflix from the terminal |
-| **Live Overlay** | Real-time HUD showing gaze ray, confidence bar, attention stats, and Netflix state |
+| Feature | Status | Description |
+|---|---|---|
+| **Drowsiness Detection** | ✅ | Eye Aspect Ratio (EAR) — pauses + alert if eyes close for 2s |
+| **Attention Analytics Dashboard** | ✅ | Session JSON logging + interactive Chart.js dashboard |
+| **Multi-OTT Support** | ✅ | Netflix, Prime Video, YouTube, Hotstar, JioCinema, Apple TV+ |
+| **Emotion-Aware Playback** | ✅ | Auto-rewind on confusion, skip on boredom, bookmark on surprise |
+| **Smart Audio Fade** | ✅ | Gradual volume fade before pause — no jarring hard-cut |
+| **4-Person Weighted Attention** | ✅ | Group majority threshold (configurable) for multi-viewer sessions |
 
 ---
 
@@ -29,185 +24,230 @@ Unlike simple "face detection" tools, this project computes precise **3D head po
 
 ```
 .
-├── README.md
-├── LICENSE
+├── head/
+│   ├── netflix_attention.py      # Single viewer — full enhanced edition
+│   ├── netflix_attention_2p.py   # Two-viewer (original)
+│   ├── netflix_attention_4p.py   # Four-viewer weighted attention (new)
+│   └── face_landmarker.task      # MediaPipe model (~3.6 MB, downloaded separately)
+├── analytics.py                  # Session event logger
+├── platforms.py                  # Multi-OTT URL + JS config
+├── dashboard.html                # Interactive analytics dashboard
+├── netflix_seek_test.py          # CLI playback control tool
+├── sessions/                     # Auto-created; stores session JSON files
 ├── requirements.txt
-├── .gitignore
-├── netflix_seek_test.py          # CLI: play / pause / seek / toggle Netflix
-└── head/
-    ├── face_landmarker.task      # MediaPipe model weights (~3.6 MB)
-    ├── netflix_attention.py      # Single-viewer attention controller
-    └── netflix_attention_2p.py   # Two-viewer attention controller
+└── README.md
 ```
 
 ---
 
-## 🖥️ Requirements
+## 🚀 Setup
 
-- **macOS** (uses AppleScript) or **Windows** (uses Chrome DevTools Protocol)
-- **Google Chrome** with a Netflix tab open and a video loaded
-- **Python 3.10+**
-- A webcam (built-in or external)
-
----
-
-## 🚀 Getting Started
-
-### 1. Clone the repository
+### 1. Clone
 
 ```bash
-git clone https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player.git
-cd Attention-Aware-Netflix-Player
+git clone https://github.com/Suj1234/attention-aware-player-enhanced.git
+cd attention-aware-player-enhanced
 ```
 
-### 2. Create a virtual environment (recommended)
+### 2. Create Virtual Environment
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 ```
 
-### 3. Install dependencies
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. System-Specific Setup
+### 4. Download MediaPipe Model
 
-**For macOS Users:**
-The first time you run the app, macOS will ask for:
-- **Camera access** — for the webcam feed
-- **Accessibility / Automation** — so the script can send JavaScript to Chrome via AppleScript
+```bash
+curl -L -o head/face_landmarker.task \
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+```
 
-Go to **System Settings → Privacy & Security** and allow both.
+### 5. macOS Permissions
 
-**For Windows Users:**
-The script requires access to Chrome's debugging mechanics to inject playback behavior. You **must** launch Chrome from the command line with remote debugging enabled:
-1. Completely close all running instances of Chrome.
-2. Open Command Prompt or PowerShell and launch Chrome:
-   ```cmd
-   start chrome.exe --remote-debugging-port=9222
-   ```
-3. Open Netflix in that new Chrome window and start your video.
+Go to **System Settings → Privacy & Security**:
+- **Camera** — allow Terminal
+- **Automation** — allow Terminal to control Google Chrome
+
+### 5. Windows Only
+
+```bash
+# Close all Chrome windows first, then:
+start chrome.exe --remote-debugging-port=9222
+# Open your streaming platform in that Chrome window
+```
 
 ---
 
-## 🎮 Usage
+## ▶️ Running
 
-### Attention Controller — Single Viewer
+### Single Viewer (Enhanced) — Auto-detects platform
 
 ```bash
 python head/netflix_attention.py
 ```
 
-- Look at the screen → Netflix plays
-- Turn your head away → Netflix pauses after 1.5 s
-- Leave the camera frame → Netflix keeps playing; seeks back when you return
-- Press **`q`** to quit
-
-### Attention Controller — Two Viewers
+### Force a specific platform
 
 ```bash
-python head/netflix_attention_2p.py
+python head/netflix_attention.py --platform prime
+python head/netflix_attention.py --platform youtube
+python head/netflix_attention.py --platform hotstar
 ```
 
-- Both face the screen → Netflix plays
-- Either person looks away → Netflix pauses
-- Either person leaves the frame → seeks back on return
-- **P1** = leftmost face, **P2** = rightmost face (auto-assigned each frame)
+### Open analytics dashboard after session
+
+```bash
+python head/netflix_attention.py --dashboard
+```
+
+### 4-Person Group Viewing
+
+```bash
+python head/netflix_attention_4p.py                    # 50% majority rule
+python head/netflix_attention_4p.py --threshold 0.75  # stricter: 75% must be watching
+```
 
 ### CLI Playback Control
 
 ```bash
-# Play / Pause / Toggle
 python netflix_seek_test.py --play
 python netflix_seek_test.py --pause
-python netflix_seek_test.py --toggle
-
-# Get current position
 python netflix_seek_test.py --get-time
-
-# Seek to a specific time
 python netflix_seek_test.py --minutes 18 --seconds 30
-python netflix_seek_test.py --time 1091243   # milliseconds
-
-# Check if the Netflix player API is reachable
-python netflix_seek_test.py --check
 ```
+
+---
+
+## 🧠 How It Works
+
+### Head Pose Estimation
+1. **Digital zoom** — crops centre of frame so MediaPipe works at distance
+2. **478-point face mesh** — MediaPipe Face Landmarker returns 3D landmarks
+3. **Yaw & Pitch** — computed from cross-product of ear-to-ear and top-to-bottom vectors
+4. **Auto-calibration** — first 30 frames set neutral baseline
+
+### State Machine
+```
+WATCHING   → face visible, head pointing at screen
+AWAY       → face visible, head turned (pauses after 1.5s grace)
+ABSENT     → face left camera (plays on; seeks back on return)
+DROWSY     → face visible + EAR < 0.25 for 2s (pauses + Ping alert)
+```
+
+### Drowsiness Detection (EAR)
+```
+EAR = (|p2-p6| + |p3-p5|) / (2 × |p1-p4|)
+```
+Where p1–p6 are the 6 MediaPipe eye landmark points per eye.  
+`EAR < 0.25` for 2+ seconds → **DROWSY** state triggered.
+
+### Emotion Detection (Blendshapes)
+| Emotion | Trigger | Action |
+|---|---|---|
+| Confused | `browInnerUp > 0.6` | Auto-rewind 15 seconds |
+| Surprised | `eyeWideLeft/Right > 0.7` | Bookmark timestamp |
+| Bored | 3+ away events in 2 min | Skip forward 30 seconds |
+
+### Multi-OTT Support
+All platforms except Netflix use `document.querySelector('video')`.  
+Netflix uses its internal JS API with HTML5 video fallback.  
+Platform is **auto-detected** by scanning Chrome tab URLs.
+
+---
+
+## 📊 Analytics Dashboard
+
+After any session, open `dashboard.html` in your browser:
+
+```bash
+open dashboard.html
+# or automatically on quit:
+python head/netflix_attention.py --dashboard
+```
+
+Shows:
+- 📈 Weekly attention trend line
+- 🍩 Session breakdown donut (watching / away / absent / drowsy)
+- ⏱ Colour-coded attention timeline per episode
+- 📋 Full session history table with distraction counts
+
+Session data is saved to `sessions/YYYY-MM-DD_HH-MM.json`.
 
 ---
 
 ## ⚙️ Configuration
 
-Key constants live at the top of each attention script and can be tuned to your setup:
+Key constants at the top of each script:
 
 | Constant | Default | Description |
 |---|---|---|
-| `CAMERA_INDEX` | `0` | OpenCV camera index |
-| `YAW_THRESHOLD_DEG` | `25` | How far you can turn left/right before "away" triggers |
-| `PITCH_THRESHOLD_DEG` | `20` | How far you can tilt up/down before "away" triggers |
-| `DIGITAL_ZOOM` | `2.0` | Centre-crop zoom factor (increase if you sit far away) |
-| `AWAY_GRACE_SEC` | `1.5` | Seconds of looking away before Netflix pauses |
-| `BACK_GRACE_SEC` | `0.8` | Seconds of looking back before Netflix resumes |
-| `MIN_ABSENT_FOR_SEEK_SEC` | `2.0` | Minimum absence to trigger a seek-back |
-| `AUTO_CALIB_FRAMES` | `30` | Frames used for auto-calibration |
-| `FILTER_LENGTH` | `10` | Smoothing window for head-pose estimation |
-
----
-
-## 🏗️ How It Works
-
-### Netflix Control
-
-Because Chrome's isolated-world sandbox prevents direct access to the `netflix` global, the scripts seamlessly inject JavaScript into your browser:
-- **macOS:** AppleScript drives Google Chrome's `execute javascript` command to directly evaluate code.
-- **Windows:** Communicates locally via WebSockets using the Chrome DevTools Protocol (`--remote-debugging-port=9222`).
-- **Inject a `<script>` tag** into the page's main world (used by `netflix_seek_test.py`), or
-- **Fall back to the HTML5 `<video>` element** when the Netflix API isn't available (used by the attention scripts)
-
-This approach requires **no browser extensions** — just Chrome and a Netflix tab.
-
-### Head-Pose Estimation
-
-1. **Digital zoom** — the centre of the camera frame is cropped and upscaled so MediaPipe can reliably detect faces at distance.
-2. **478-point face mesh** — MediaPipe's Face Landmarker returns 3D landmarks.
-3. **Yaw & Pitch** — computed from cross-product of ear-to-ear and top-to-bottom vectors, smoothed over a rolling window.
-4. **Auto-calibration** — the first 30 frames establish a neutral baseline; subsequent angles are measured relative to it.
-
-### Behaviour Logic
-
-```
-Face visible + head oriented at screen  →  WATCHING   →  Netflix plays
-Face visible + head turned away         →  AWAY       →  Netflix pauses (after grace)
-Face absent (left the room)             →  ABSENT     →  Netflix keeps playing
-Face returns after absence              →  SEEK-BACK  →  Netflix rewinds by absence duration
-```
+| `CAMERA_INDEX` | `0` | Webcam device index |
+| `YAW_THRESHOLD_DEG` | `25` | Max horizontal head turn allowed |
+| `PITCH_THRESHOLD_DEG` | `20` | Max vertical head tilt allowed |
+| `AWAY_GRACE_SEC` | `1.5` | Seconds before pause triggers |
+| `BACK_GRACE_SEC` | `0.8` | Seconds before resume triggers |
+| `DIGITAL_ZOOM` | `2.0` | Crop zoom for distant faces |
+| `EAR_THRESHOLD` | `0.25` | Eye openness threshold for drowsiness |
+| `DROWSY_GRACE_SEC` | `2.0` | Seconds of low EAR before drowsy alert |
+| `ATTENTION_THRESHOLD` | `0.5` | Group attention threshold (4P mode) |
 
 ---
 
 ## 🔧 Troubleshooting
 
-| Problem | Solution |
-|---|---|
-| `No Netflix tab found in Chrome` | Open Chrome, navigate to Netflix, and start playing a video |
-| `AppleScript error` | Grant Automation permission: System Settings → Privacy & Security → Automation → allow your terminal |
-| `Could not connect to Chrome (Windows)` | Ensure all Chrome windows were closed before launching with the `--remote-debugging-port` flag |
-| `ConnectionRefusedError` | Check if another app is using port 9222 or if your firewall is blocking local websocket connections |
-| Face not detected | Increase `DIGITAL_ZOOM`, improve lighting, or sit closer to the camera |
-| Rapid pause/resume flickering | Increase `AWAY_GRACE_SEC` or `BACK_GRACE_SEC` |
-| `Model not found` | Make sure `face_landmarker.task` is in the `head/` directory |
+**`No tab found in Chrome`** — Make sure your streaming platform is open in Chrome (not another browser).
+
+**`AppleScript error`** — Grant Terminal access in System Settings → Privacy → Automation.
+
+**`Model not found`** — Re-run the `curl` download command for `face_landmarker.task`.
+
+**Bad detection at distance** — Increase `DIGITAL_ZOOM` to `3.0`.
+
+**Drowsy too sensitive** — Raise `EAR_THRESHOLD` to `0.20` or increase `DROWSY_GRACE_SEC`.
 
 ---
 
-## 📜 Credits & Acknowledgements
+## 🌐 Supported Platforms
 
-- **Netflix JS API** — sourced from [this Stack Overflow answer](https://stackoverflow.com/a/61988153) by Zarbi4734, licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
-- **MediaPipe Face Landmarker** — [Google MediaPipe](https://developers.google.com/mediapipe)
-- **OpenCV** — [opencv.org](https://opencv.org/)
+| Platform | URL Filter | Method |
+|---|---|---|
+| Netflix | `netflix.com` | Netflix JS API + video fallback |
+| Prime Video | `primevideo.com` | HTML5 `<video>` element |
+| YouTube | `youtube.com` | HTML5 `<video>` element |
+| Disney+ Hotstar | `hotstar.com` | HTML5 `<video>` element |
+| JioCinema | `jiocinema.com` | HTML5 `<video>` element |
+| Apple TV+ | `tv.apple.com` | HTML5 `<video>` element |
+
+---
+
+## 🛠 Tech Stack
+
+| Tool | Purpose |
+|---|---|
+| Google MediaPipe | Face landmark detection (478 points) |
+| OpenCV | Webcam feed, frame processing, HUD overlay |
+| Python 3.10+ | Core runtime |
+| AppleScript / CDP | JS injection into Chrome |
+| Chart.js | Analytics dashboard charts |
+| scipy | Signal smoothing utilities |
+
+---
+
+## 📜 Credits
+
+- **Base project**: [Tuesday-Labs/Attention-Aware-Netflix-Player](https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player) — MIT License  
+- **Netflix JS API**: [Stack Overflow answer by Zarbi4734](https://stackoverflow.com/a/61988153) — CC BY-SA 4.0  
+- **MediaPipe**: [Google MediaPipe](https://developers.google.com/mediapipe)
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
+MIT License — see [LICENSE](./LICENSE) for details.
