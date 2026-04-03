@@ -1,22 +1,29 @@
-# 👁 Attention-Aware Netflix Player — Enhanced Edition
+# 👁 Stream Attention — Multi-OTT Attention-Aware Player
 
 > **Auto-pause any streaming platform when you look away, fall asleep, or leave the room.**  
-> Built on top of [Tuesday-Labs/Attention-Aware-Netflix-Player](https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player) · MIT License
+> Supports Netflix, Prime Video, YouTube, Disney+ Hotstar, JioCinema, and Apple TV+.
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue) ![MediaPipe](https://img.shields.io/badge/MediaPipe-Face%20Landmarker-green) ![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-lightgrey) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ---
 
-## ✨ What's New in the Enhanced Edition
+## ✨ Features
 
 | Feature | Status | Description |
 |---|---|---|
-| **Drowsiness Detection** | ✅ | Eye Aspect Ratio (EAR) — pauses + alert if eyes close for 2s |
-| **Attention Analytics Dashboard** | ✅ | Session JSON logging + interactive Chart.js dashboard |
 | **Multi-OTT Support** | ✅ | Netflix, Prime Video, YouTube, Hotstar, JioCinema, Apple TV+ |
+| **Head Pose Tracking** | ✅ | Auto-pause when you look away, resume when you look back |
+| **Seek-Back on Return** | ✅ | Rewinds exactly how long you were absent |
+| **Drowsiness Detection** | ✅ | Eye Aspect Ratio (EAR) — pauses + alert if eyes close for 2s |
+| **Attention Analytics** | ✅ | Session JSON logging + interactive Chart.js dashboard |
 | **Emotion-Aware Playback** | ✅ | Auto-rewind on confusion, skip on boredom, bookmark on surprise |
-| **Smart Audio Fade** | ✅ | Gradual volume fade before pause — no jarring hard-cut |
-| **4-Person Weighted Attention** | ✅ | Group majority threshold (configurable) for multi-viewer sessions |
+| **Smart Audio Fade** | ✅ | Gradual volume fade before pause |
+| **4-Person Group Mode** | ✅ | Weighted group attention with configurable threshold |
+| **2-Person Mode** | ✅ | Both viewers must be watching |
+| **WiFi Camera Support** | ✅ | Use your phone as a wireless webcam |
+| **Smart Seek-Back** | ✅ | Skip rewind for long breaks (likely intentional) |
+| **Study Mode** | ✅ | Stricter thresholds + Pomodoro session logging |
+| **Parental Guard** | ✅ | Pause immediately when child leaves frame |
 
 ---
 
@@ -25,15 +32,16 @@
 ```
 .
 ├── head/
-│   ├── stream_attention.py      # Single viewer — full enhanced edition
-│   ├── stream_attention_2p.py   # Two-viewer (original)
-│   ├── stream_attention_4p.py   # Four-viewer weighted attention (new)
-│   └── face_landmarker.task      # MediaPipe model (~3.6 MB, downloaded separately)
-├── analytics.py                  # Session event logger
-├── platforms.py                  # Multi-OTT URL + JS config
+│   ├── stream_attention.py       # Single viewer — all features
+│   ├── stream_attention_2p.py    # Two-viewer mode
+│   ├── stream_attention_4p.py    # Four-viewer weighted group mode
+│   ├── analytics.py              # Session event logger
+│   ├── platforms.py              # Multi-OTT platform config
+│   ├── sessions/                 # Session JSON files saved here
+│   └── face_landmarker.task      # MediaPipe model (downloaded separately)
 ├── dashboard.html                # Interactive analytics dashboard
+├── serve_dashboard.py            # Serves dashboard with real session data
 ├── netflix_seek_test.py          # CLI playback control tool
-├── sessions/                     # Auto-created; stores session JSON files
 ├── requirements.txt
 └── README.md
 ```
@@ -87,7 +95,7 @@ start chrome.exe --remote-debugging-port=9222
 
 ## ▶️ Running
 
-### Single Viewer (Enhanced) — Auto-detects platform
+### Single Viewer — Auto-detects platform
 
 ```bash
 python head/stream_attention.py
@@ -99,20 +107,46 @@ python head/stream_attention.py
 python head/stream_attention.py --platform prime
 python head/stream_attention.py --platform youtube
 python head/stream_attention.py --platform hotstar
+python head/stream_attention.py --platform jiocinema
+python head/stream_attention.py --platform appletv
+python head/stream_attention.py --platform netflix
 ```
 
-### Open analytics dashboard after session
+### Special modes
 
 ```bash
+# Use phone as WiFi webcam instead of built-in camera
+python head/stream_attention.py --camera-url http://192.168.1.100:8080/video
+
+# Skip rewind if you were absent for more than 30s (intentional break)
+python head/stream_attention.py --smart-seek
+
+# Strict attention thresholds + Pomodoro 25/5 session logging
+python head/stream_attention.py --study-mode
+
+# Pause immediately when face leaves frame (child/parental mode)
+python head/stream_attention.py --parental
+
+# Open analytics dashboard automatically on quit
 python head/stream_attention.py --dashboard
 ```
 
-### 4-Person Group Viewing
+### Multi-Person Viewing
 
 ```bash
-python head/stream_attention_4p.py                    # 50% majority rule
-python head/stream_attention_4p.py --threshold 0.75  # stricter: 75% must be watching
+python head/stream_attention_2p.py                    # 2 viewers, both must watch
+python head/stream_attention_4p.py                    # up to 4 viewers, weighted
+python head/stream_attention_4p.py --threshold 0.75   # stricter: 75% must be watching
 ```
+
+### Analytics Dashboard
+
+```bash
+# Always use serve_dashboard.py — do NOT open dashboard.html directly
+python serve_dashboard.py
+```
+
+> ⚠️ Opening `dashboard.html` via `file://` shows only demo data. Run `serve_dashboard.py` to inject your real session data.
 
 ### CLI Playback Control
 
@@ -138,7 +172,7 @@ python netflix_seek_test.py --minutes 18 --seconds 30
 WATCHING   → face visible, head pointing at screen
 AWAY       → face visible, head turned (pauses after 1.5s grace)
 ABSENT     → face left camera (plays on; seeks back on return)
-DROWSY     → face visible + EAR < 0.25 for 2s (pauses + Ping alert)
+DROWSY     → face visible + EAR < 0.25 for 2s (pauses + alert)
 ```
 
 ### Drowsiness Detection (EAR)
@@ -155,21 +189,18 @@ Where p1–p6 are the 6 MediaPipe eye landmark points per eye.
 | Surprised | `eyeWideLeft/Right > 0.7` | Bookmark timestamp |
 | Bored | 3+ away events in 2 min | Skip forward 30 seconds |
 
-### Multi-OTT Support
-All platforms except Netflix use `document.querySelector('video')`.  
-Netflix uses its internal JS API with HTML5 video fallback.  
-Platform is **auto-detected** by scanning Chrome tab URLs.
+### Platform JS Injection
+- **macOS**: AppleScript → `execute tab javascript` in Google Chrome
+- **Windows**: Chrome DevTools Protocol (CDP) via WebSocket on port 9222
+- Smart video element selection — picks the active playing element when multiple `<video>` elements exist (e.g. Prime Video)
+- Netflix uses its internal JS API; YouTube uses `movie_player` API; all others use HTML5 `<video>` element
 
 ---
 
 ## 📊 Analytics Dashboard
 
-After any session, open `dashboard.html` in your browser:
-
 ```bash
-open dashboard.html
-# or automatically on quit:
-python head/stream_attention.py --dashboard
+python serve_dashboard.py    # serves at http://localhost:8765, auto-opens browser
 ```
 
 Shows:
@@ -178,7 +209,7 @@ Shows:
 - ⏱ Colour-coded attention timeline per episode
 - 📋 Full session history table with distraction counts
 
-Session data is saved to `sessions/YYYY-MM-DD_HH-MM.json`.
+Session data is saved to `head/sessions/YYYY-MM-DD_HH-MM.json`.
 
 ---
 
@@ -196,6 +227,7 @@ Key constants at the top of each script:
 | `DIGITAL_ZOOM` | `2.0` | Crop zoom for distant faces |
 | `EAR_THRESHOLD` | `0.25` | Eye openness threshold for drowsiness |
 | `DROWSY_GRACE_SEC` | `2.0` | Seconds of low EAR before drowsy alert |
+| `SMART_SEEK_MAX_SEC` | `30.0` | Max absent duration to trigger rewind |
 | `ATTENTION_THRESHOLD` | `0.5` | Group attention threshold (4P mode) |
 
 ---
@@ -212,15 +244,17 @@ Key constants at the top of each script:
 
 **Drowsy too sensitive** — Raise `EAR_THRESHOLD` to `0.20` or increase `DROWSY_GRACE_SEC`.
 
+**Dashboard shows demo data** — Use `python serve_dashboard.py` instead of opening `dashboard.html` directly.
+
 ---
 
 ## 🌐 Supported Platforms
 
-| Platform | URL Filter | Method |
+| Platform | URL Filter | Control Method |
 |---|---|---|
-| Netflix | `netflix.com` | Netflix JS API + video fallback |
-| Prime Video | `primevideo.com` | HTML5 `<video>` element |
-| YouTube | `youtube.com` | HTML5 `<video>` element |
+| Netflix | `netflix.com` | Netflix internal JS API |
+| Prime Video | `primevideo.com` | HTML5 `<video>` (smart element selection) |
+| YouTube | `youtube.com` | `movie_player` JS API |
 | Disney+ Hotstar | `hotstar.com` | HTML5 `<video>` element |
 | JioCinema | `jiocinema.com` | HTML5 `<video>` element |
 | Apple TV+ | `tv.apple.com` | HTML5 `<video>` element |
@@ -231,20 +265,12 @@ Key constants at the top of each script:
 
 | Tool | Purpose |
 |---|---|
-| Google MediaPipe | Face landmark detection (478 points) |
+| Google MediaPipe | Face landmark detection (478 points + blendshapes) |
 | OpenCV | Webcam feed, frame processing, HUD overlay |
 | Python 3.10+ | Core runtime |
-| AppleScript / CDP | JS injection into Chrome |
+| AppleScript / CDP | JS injection into Chrome (macOS / Windows) |
 | Chart.js | Analytics dashboard charts |
 | scipy | Signal smoothing utilities |
-
----
-
-## 📜 Credits
-
-- **Base project**: [Tuesday-Labs/Attention-Aware-Netflix-Player](https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player) — MIT License  
-- **Netflix JS API**: [Stack Overflow answer by Zarbi4734](https://stackoverflow.com/a/61988153) — CC BY-SA 4.0  
-- **MediaPipe**: [Google MediaPipe](https://developers.google.com/mediapipe)
 
 ---
 

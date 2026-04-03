@@ -1,9 +1,9 @@
-# Attention-Aware Netflix Player — Enhanced Edition
+# Stream Attention — Multi-OTT Attention-Aware Player
 
 ## Project Overview
-Extends the open-source [Tuesday Labs Attention-Aware Netflix Player](https://github.com/Tuesday-Labs/Attention-Aware-Netflix-Player) with drowsiness detection, emotion-aware playback, multi-OTT support, attention analytics, smart audio fade, and multi-person weighted attention.
+Multi-OTT attention-aware streaming player with drowsiness detection, emotion-aware playback, attention analytics, smart audio fade, and multi-person weighted attention. Supports Netflix, Prime Video, YouTube, Disney+ Hotstar, JioCinema, and Apple TV+.
 
-**Base concept:** webcam + MediaPipe 478-point face mesh → auto-pause when you look away → seek back exactly how long you were absent.
+**Core concept:** webcam + MediaPipe 478-point face mesh → auto-pause when you look away → seek back exactly how long you were absent.
 
 ---
 
@@ -209,5 +209,5 @@ Pause if group_score < ATTENTION_THRESHOLD (default 0.5)
 
 ---
 
-## Base Credit
-Tuesday Labs — MIT License | Enhanced Edition built 2025-2026
+## Built
+Stream Attention — MIT License | Built 2025-2026

@@ -1,7 +1,7 @@
 """
-Netflix Attention Controller — Enhanced Edition
-================================================
-Features added over the original Tuesday-Labs base:
+Stream Attention — Multi-OTT Attention-Aware Player
+====================================================
+Features:
   - Drowsiness Detection (Eye Aspect Ratio / EAR)
   - Session event logging → analytics.py
   - Multi-OTT platform support → platforms.py
