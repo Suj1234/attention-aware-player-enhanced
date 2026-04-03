@@ -4,7 +4,7 @@ analytics.py — Session Event Logger & Data Persistence
 Collects real-time viewing events and writes them to JSON files
 in the sessions/ directory for later analysis via dashboard.html.
 
-Usage (from netflix_attention.py):
+Usage (from stream_attention.py):
     from analytics import SessionLogger
     logger = SessionLogger(platform="netflix")
     logger.log("away", video_ms=45230)

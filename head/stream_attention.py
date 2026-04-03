@@ -61,6 +61,19 @@ BORED_AWAY_THRESHOLD = 3       # # of away events in window = bored
 # ── Smart Audio Fade ─────────────────────────────────────────── #
 FADE_STEPS = 10
 
+# ── Smart Seek-Back ───────────────────────────────────────────── #
+SMART_SEEK_MAX_SEC   = 30.0   # With --smart-seek: only rewind if absent < this
+
+# ── Study Mode ───────────────────────────────────────────────── #
+STUDY_YAW_THRESHOLD  = 15     # Stricter yaw  (vs normal 25°)
+STUDY_PITCH_THRESHOLD= 15     # Stricter pitch (vs normal 20°)
+STUDY_AWAY_GRACE_SEC = 0.5    # Shorter grace  (vs normal 1.5s)
+POMODORO_WORK_SEC    = 25 * 60
+POMODORO_BREAK_SEC   = 5  * 60
+
+# ── Parental Attention Guard ──────────────────────────────────── #
+PARENTAL_ABSENT_GRACE= 3.0    # Seconds before pausing when child leaves frame
+
 # ── Head pose landmark indices ──────────────────────────────── #
 HEAD_LANDMARKS = {"left": 234, "right": 454, "top": 10, "bottom": 152, "front": 1}
 
@@ -115,7 +128,18 @@ def _nf_js(action: str) -> str:
     return (
         f"(function(){{"
         f"  try {{"
-        f"    var v = document.querySelector('video');"
+        f"    var _vids = document.querySelectorAll('video');"
+        f"    var v = null;"
+        f"    for (var _j = 0; _j < _vids.length; _j++) {{"
+        f"      if (_vids[_j].src !== '' || _vids[_j].currentTime > 0) {{ v = _vids[_j]; break; }}"
+        f"    }}"
+        f"    if (!v) v = _vids.length > 0 ? _vids[0] : null;"
+        f"    if (!v) {{"
+        f"      var frames = document.querySelectorAll('iframe');"
+        f"      for (var _i = 0; _i < frames.length; _i++) {{"
+        f"        try {{ var _fv = frames[_i].contentDocument.querySelector('video'); if (_fv) {{ v = _fv; break; }} }} catch(_e) {{}}"
+        f"      }}"
+        f"    }}"
         f"    var pl = null;"
         f"    /* 1. Try Netflix API */"
         f"    var n = window.netflix || window.__netflix || (typeof netflix !== 'undefined' ? netflix : null);"
@@ -253,14 +277,25 @@ def _netflix_pause():
     except Exception as e:
         print(f"[Player] Pause failed: {e}")
 
+_last_good_ms: float = -1.0
+_last_good_at: float = 0.0
+
 def _netflix_get_time_ms() -> float:
+    global _last_good_ms, _last_good_at
     try:
         r = _inject_and_read(_JS_GET_TIME, _URL_FILTER)
         if r.startswith("TIME:"):
-            return float(r[5:])
+            val = float(r[5:])
+            _last_good_ms = val
+            _last_good_at = time.time()
+            return val
         raise RuntimeError(r)
     except Exception as e:
         print(f"[Player] Get-time failed: {e}")
+        if _last_good_ms >= 0:
+            estimated = _last_good_ms + (time.time() - _last_good_at) * 1000
+            print(f"[Player] Using estimated position: {estimated/1000:.1f}s")
+            return estimated
         return -1.0
 
 def _netflix_seek_ms(ms: int):
@@ -451,7 +486,15 @@ def main():
     parser.add_argument("--dashboard", action="store_true",
                         help="Open analytics dashboard on quit")
     parser.add_argument("--threshold", type=float, default=None,
-                        help="Unused in 1P mode (for 4P mode use netflix_attention_4p.py)")
+                        help="Unused in 1P mode (for 4P mode use stream_attention_4p.py)")
+    parser.add_argument("--camera-url", default=None,
+                        help="WiFi camera URL, e.g. http://192.168.1.100:8080/video (IP Webcam app)")
+    parser.add_argument("--smart-seek", action="store_true",
+                        help="Only rewind if absent < 30s — skips seek-back for intentional breaks")
+    parser.add_argument("--study-mode", action="store_true",
+                        help="Stricter thresholds + Pomodoro logging (25min work / 5min break)")
+    parser.add_argument("--parental", action="store_true",
+                        help="Pause when face leaves frame (child mode) instead of seeking back")
     args = parser.parse_args()
 
     # ── Platform detection ──────────────────────────────────────
@@ -468,6 +511,14 @@ def main():
     except ImportError:
         _URL_FILTER = "netflix.com"
         platform_cfg = {"url_filter": "netflix.com"}
+
+    # ── Study mode: override thresholds ─────────────────────────
+    if args.study_mode:
+        global YAW_THRESHOLD_DEG, PITCH_THRESHOLD_DEG, AWAY_GRACE_SEC
+        YAW_THRESHOLD_DEG    = STUDY_YAW_THRESHOLD
+        PITCH_THRESHOLD_DEG  = STUDY_PITCH_THRESHOLD
+        AWAY_GRACE_SEC       = STUDY_AWAY_GRACE_SEC
+        print("[Study Mode] Thresholds tightened. Pomodoro timer active.")
 
     # ── Analytics ───────────────────────────────────────────────
     try:
@@ -507,6 +558,12 @@ def main():
     last_confusion_action = 0.0
     last_boredom_action   = 0.0
 
+    # ── Study mode / Pomodoro ─────────────────────────────────── #
+    pomo_block_start  = time.time()   # when current block began
+    pomo_block_num    = 0             # 0=work,1=break,2=work,…
+    pomo_block_look   = 0.0           # looking_seconds within this block
+    pomo_log: list[dict] = []         # completed block summaries
+
     # ── Model setup ─────────────────────────────────────────────
     if not os.path.exists(MODEL_PATH):
         print(f"[ERROR] Model not found: {MODEL_PATH}")
@@ -526,9 +583,15 @@ def main():
     )
     detector = FaceLandmarker.create_from_options(opts)
 
-    cap = cv2.VideoCapture(CAMERA_INDEX)
+    camera_source = args.camera_url if args.camera_url else CAMERA_INDEX
+    if args.camera_url:
+        print(f"[Camera] Using WiFi stream: {args.camera_url}")
+    cap = cv2.VideoCapture(camera_source)
     if not cap.isOpened():
-        print(f"[ERROR] Cannot open camera {CAMERA_INDEX}.")
+        src_desc = args.camera_url or f"camera index {CAMERA_INDEX}"
+        print(f"[ERROR] Cannot open {src_desc}.")
+        if args.camera_url:
+            print("  Make sure IP Webcam (Android) or similar is running and the URL is reachable.")
         sys.exit(1)
 
     print("=" * 58)
@@ -591,12 +654,15 @@ def main():
                 if logger:
                     logger.log("back", _netflix_get_time_ms())
                 if absent_duration >= MIN_ABSENT_FOR_SEEK_SEC:
-                    print(f"[Seek-Back] Absent {absent_duration:.1f}s — seeking back…")
-                    current_ms = _netflix_get_time_ms()
-                    if current_ms >= 0:
-                        seek_target = max(0, current_ms - absent_duration * 1000)
-                        _netflix_seek_ms(int(seek_target))
-                        rewinding_until = now + REWIND_DISPLAY_SEC
+                    if args.smart_seek and absent_duration >= SMART_SEEK_MAX_SEC:
+                        print(f"[Smart Seek-Back] Absent {absent_duration:.1f}s — likely intentional break, not rewinding.")
+                    else:
+                        print(f"[Seek-Back] Absent {absent_duration:.1f}s — seeking back…")
+                        current_ms = _netflix_get_time_ms()
+                        if current_ms >= 0:
+                            seek_target = max(0, current_ms - absent_duration * 1000)
+                            _netflix_seek_ms(int(seek_target))
+                            rewinding_until = now + REWIND_DISPLAY_SEC
                 face_absent_since = None
             away_since = back_since = None
             drowsy_since = None
@@ -607,12 +673,15 @@ def main():
         elif not face_in_frame and face_visible:
             face_visible = False
             face_absent_since = now
-            print("[Absent] Face left frame — timer started, player keeps playing.")
+            if args.parental:
+                print(f"[Parental] Face left frame — will pause in {PARENTAL_ABSENT_GRACE:.0f}s.")
+            else:
+                print("[Absent] Face left frame — timer started, player keeps playing.")
+                if netflix_paused:
+                    _netflix_play()
+                    netflix_paused = False
             if logger:
                 logger.log("absent", _netflix_get_time_ms())
-            if netflix_paused:
-                _netflix_play()
-                netflix_paused = False
             away_since = back_since = None
             drowsy_since = None
             is_drowsy = False
@@ -778,8 +847,39 @@ def main():
         # ── Time tracking ─────────────────────────────────────────
         if is_looking:
             looking_seconds += dt
+            if args.study_mode:
+                pomo_block_look += dt
         else:
             away_seconds += dt
+
+        # ── Study Mode: Pomodoro tick ──────────────────────────────
+        if args.study_mode:
+            is_work_block = (pomo_block_num % 2 == 0)
+            block_duration = POMODORO_WORK_SEC if is_work_block else POMODORO_BREAK_SEC
+            if (now - pomo_block_start) >= block_duration:
+                block_secs  = now - pomo_block_start
+                block_attn  = int(pomo_block_look / max(block_secs, 1) * 100)
+                block_type  = "Work" if is_work_block else "Break"
+                pomo_log.append({"block": pomo_block_num + 1, "type": block_type,
+                                 "duration_sec": int(block_secs), "attention_pct": block_attn})
+                next_type = "Break" if is_work_block else "Work"
+                print(f"[Pomodoro] {block_type} block {pomo_block_num + 1} complete — "
+                      f"{block_attn}% attention. Starting {next_type} block.")
+                if logger:
+                    logger.log(f"pomodoro_{block_type.lower()}_complete",
+                               _netflix_get_time_ms())
+                pomo_block_num   += 1
+                pomo_block_start  = now
+                pomo_block_look   = 0.0
+
+        # ── Parental: pause after grace period when face absent ───
+        if args.parental and not face_visible and face_absent_since is not None:
+            if (now - face_absent_since) >= PARENTAL_ABSENT_GRACE and not netflix_paused:
+                print("[Parental] Pausing — child left frame.")
+                _netflix_pause()
+                netflix_paused = True
+                if logger:
+                    logger.log("parental_pause", _netflix_get_time_ms())
 
         # ── Pause / Play (only when face visible and not drowsy) ──
         if auto_calib_done and face_visible and not is_drowsy:
@@ -853,6 +953,11 @@ def main():
     print(f"  Total    : {fmt_duration(total)}")
     print(f"  Looking  : {fmt_duration(looking_seconds)}  ({pct}%)")
     print(f"  Away     : {fmt_duration(away_seconds)}  ({100 - pct}%)")
+    if args.study_mode and pomo_log:
+        print("  ── Pomodoro Log ──────────────────────────────────")
+        for b in pomo_log:
+            mins = b["duration_sec"] // 60
+            print(f"    Block {b['block']:>2} [{b['type']:<5}] {mins:>3}min  {b['attention_pct']}% attention")
     print("────────────────────────────────────────────────────\n")
 
     # ── Save analytics session ────────────────────────────────────

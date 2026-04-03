@@ -6,3 +6,4 @@ websocket-client>=1.8.0
 
 # ── Enhanced Edition additions ───────────────────────────────────
 scipy>=1.13.0          # EAR signal smoothing (optional, for future filtering)
+# playsound — NOT needed on macOS (uses afplay). Add if porting to Windows: playsound==1.2.2

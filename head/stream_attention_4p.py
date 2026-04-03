@@ -8,9 +8,9 @@ Weighted group attention: pause only if group_score < ATTENTION_THRESHOLD.
 Faces sorted left-to-right each frame: P1=leftmost … P4=rightmost.
 
 CLI:
-  python head/netflix_attention_4p.py
-  python head/netflix_attention_4p.py --threshold 0.6
-  python head/netflix_attention_4p.py --platform prime
+  python head/stream_attention_4p.py
+  python head/stream_attention_4p.py --threshold 0.6
+  python head/stream_attention_4p.py --platform prime
 """
 
 import cv2, mediapipe as mp, numpy as np, math, time, os, subprocess, sys, argparse

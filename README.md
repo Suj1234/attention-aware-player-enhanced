@@ -25,9 +25,9 @@
 ```
 .
 ├── head/
-│   ├── netflix_attention.py      # Single viewer — full enhanced edition
-│   ├── netflix_attention_2p.py   # Two-viewer (original)
-│   ├── netflix_attention_4p.py   # Four-viewer weighted attention (new)
+│   ├── stream_attention.py      # Single viewer — full enhanced edition
+│   ├── stream_attention_2p.py   # Two-viewer (original)
+│   ├── stream_attention_4p.py   # Four-viewer weighted attention (new)
 │   └── face_landmarker.task      # MediaPipe model (~3.6 MB, downloaded separately)
 ├── analytics.py                  # Session event logger
 ├── platforms.py                  # Multi-OTT URL + JS config
@@ -90,28 +90,28 @@ start chrome.exe --remote-debugging-port=9222
 ### Single Viewer (Enhanced) — Auto-detects platform
 
 ```bash
-python head/netflix_attention.py
+python head/stream_attention.py
 ```
 
 ### Force a specific platform
 
 ```bash
-python head/netflix_attention.py --platform prime
-python head/netflix_attention.py --platform youtube
-python head/netflix_attention.py --platform hotstar
+python head/stream_attention.py --platform prime
+python head/stream_attention.py --platform youtube
+python head/stream_attention.py --platform hotstar
 ```
 
 ### Open analytics dashboard after session
 
 ```bash
-python head/netflix_attention.py --dashboard
+python head/stream_attention.py --dashboard
 ```
 
 ### 4-Person Group Viewing
 
 ```bash
-python head/netflix_attention_4p.py                    # 50% majority rule
-python head/netflix_attention_4p.py --threshold 0.75  # stricter: 75% must be watching
+python head/stream_attention_4p.py                    # 50% majority rule
+python head/stream_attention_4p.py --threshold 0.75  # stricter: 75% must be watching
 ```
 
 ### CLI Playback Control
@@ -169,7 +169,7 @@ After any session, open `dashboard.html` in your browser:
 ```bash
 open dashboard.html
 # or automatically on quit:
-python head/netflix_attention.py --dashboard
+python head/stream_attention.py --dashboard
 ```
 
 Shows:
