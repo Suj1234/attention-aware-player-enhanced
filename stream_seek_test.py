@@ -1,25 +1,20 @@
 """
-Netflix Seek Test
-=================
-Controls Netflix playback (seek, play, pause, toggle) by injecting
-JavaScript into the Netflix Chrome tab via AppleScript.
-
-Source for the Netflix JS API:
-  https://stackoverflow.com/a/61988153
-  Posted by Zarbi4734
-  Retrieved 2026-03-11, License - CC BY-SA 4.0
+Stream Seek Test
+================
+Controls streaming platform playback (seek, play, pause, toggle) by injecting
+JavaScript into the Chrome tab via AppleScript.
 
 Usage:
-  python netflix_seek_test.py --play
-  python netflix_seek_test.py --pause
-  python netflix_seek_test.py --toggle
-  python netflix_seek_test.py --get-time
-  python netflix_seek_test.py --minutes 18 --seconds 30
-  python netflix_seek_test.py --time 1091243
-  python netflix_seek_test.py --check
+  python stream_seek_test.py --play
+  python stream_seek_test.py --pause
+  python stream_seek_test.py --toggle
+  python stream_seek_test.py --get-time
+  python stream_seek_test.py --minutes 18 --seconds 30
+  python stream_seek_test.py --time 1091243
+  python stream_seek_test.py --check
 
 No extra pip packages needed — stdlib only.
-Chrome must have a Netflix tab open with a video loaded.
+Chrome must have a streaming platform tab open with a video loaded.
 """
 
 import subprocess

@@ -20,7 +20,7 @@ Attention-Aware-Netflix-Player-Enhanced/
 │   └── face_landmarker.task       # MediaPipe model (NOT in git, download separately)
 ├── dashboard.html                 # Interactive analytics UI (Chart.js)
 ├── serve_dashboard.py             # HTTP server that injects session data into dashboard
-├── netflix_seek_test.py           # CLI playback control tool (stdlib only)
+├── stream_seek_test.py           # CLI playback control tool (stdlib only)
 ├── sessions/                      # Root sessions dir (.gitkeep only)
 ├── requirements.txt
 ├── README.md
@@ -70,10 +70,10 @@ python serve_dashboard.py    # serves dashboard.html with real session data inje
 
 ### CLI Playback Control
 ```bash
-python netflix_seek_test.py --play
-python netflix_seek_test.py --pause
-python netflix_seek_test.py --get-time
-python netflix_seek_test.py --minutes 18 --seconds 30
+python stream_seek_test.py --play
+python stream_seek_test.py --pause
+python stream_seek_test.py --get-time
+python stream_seek_test.py --minutes 18 --seconds 30
 ```
 
 ---
